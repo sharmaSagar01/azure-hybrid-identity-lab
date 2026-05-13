@@ -101,7 +101,7 @@ Microsoft Entra ID, creating a unified identity layer that spans both environmen
 azure-hybrid-identity-lab/
 │
 ├── config/
-│   ├── entra-connect-settings.md       # Entra Connect sync configuration   ⏳
+│   ├── entra-connect-settings.md       # Entra Connect sync configuration   ✅
 │   ├── conditional-access-policies.md  # Conditional Access policy setup     ⏳
 │   └── sspr-config.md                  # Self-Service Password Reset config  ⏳
 │
@@ -120,16 +120,16 @@ azure-hybrid-identity-lab/
 
 ## 🧩 Build Progress
 
-| #   | Phase                                             | Status     |
-| --- | ------------------------------------------------- | ---------- |
-| 1   | Set up Azure free trial + explore Entra ID portal | ✅ Complete|
-| 2   | Prepare on-premises AD for hybrid sync            | ✅ Complete|
-| 3   | Install and configure Microsoft Entra Connect     | ⏳ Pending |
-| 4   | Verify user sync — on-prem AD → Entra ID          | ⏳ Pending |
-| 5   | Configure Multi-Factor Authentication (MFA)       | ⏳ Pending |
-| 6   | Configure Conditional Access policies             | ⏳ Pending |
-| 7   | Configure Self-Service Password Reset (SSPR)      | ⏳ Pending |
-| 8   | Runbook + final documentation + GitHub push       | ⏳ Pending |
+| #   | Phase                                             | Status      |
+| --- | ------------------------------------------------- | ----------- |
+| 1   | Set up Azure free trial + explore Entra ID portal | ✅ Complete |
+| 2   | Prepare on-premises AD for hybrid sync            | ✅ Complete |
+| 3   | Install and configure Microsoft Entra Connect     | ✅ Complete |
+| 4   | Verify user sync — on-prem AD → Entra ID          | ⏳ Pending  |
+| 5   | Configure Multi-Factor Authentication (MFA)       | ⏳ Pending  |
+| 6   | Configure Conditional Access policies             | ⏳ Pending  |
+| 7   | Configure Self-Service Password Reset (SSPR)      | ⏳ Pending  |
+| 8   | Runbook + final documentation + GitHub push       | ⏳ Pending  |
 
 ---
 
@@ -519,7 +519,7 @@ Move-ADObject -Identity (Get-ADUser "paula.doe").DistinguishedName -TargetPath $
 Move-ADObject -Identity (Get-ADUser "dave.doe").DistinguishedName -TargetPath $syncOU
 Move-ADObject -Identity (Get-ADUser "sue").DistinguishedName -TargetPath $syncOU
 Move-ADObject -Identity (Get-ADUser "ram.doe").DistinguishedName -TargetPath $syncOU
- 
+ — ready for SSPR in Phase 7
 # Verify users are in the new OU
 Get-ADUser -Filter * -SearchBase $syncOU |
     Select DisplayName, SamAccountName
@@ -579,5 +579,257 @@ Test-NetConnection -ComputerName "login.microsoftonline.com" -Port 443 |
 </p>
 <p align="center">
   <img src="screenshots/phase2-img5.png" width="45%" />
+</p>
+---
+
+---
+
+# ✅ Phase 3 — Install Microsoft Entra Connect
+
+## 📋 What This Phase Covers
+
+Microsoft Entra Connect (formerly Azure AD Connect) is the bridge between
+your on-premises `InfoTech.com` Active Directory and Microsoft Entra ID in
+the cloud. It runs as a service on `VM-WINSERV-01` and continuously syncs
+user identities in one direction — on-prem to cloud.
+
+> Full configuration reference: [`config/entra-connect-settings.md`](config/entra-connect-settings.md)
+
+---
+
+## 🔍 How Entra Connect Works
+
+```
+VM-WINSERV-01 (on-premises)           Microsoft Azure (cloud)
+────────────────────────────           ──────────────────────
+Active Directory                       Microsoft Entra ID
+  paula@InfoTech.com    ──sync──►  paula@tenant.onmicrosoft.com
+  dave@InfoTech.com     ──sync──►  dave@tenant.onmicrosoft.com
+  sue@InfoTech.com      ──sync──►  sue@tenant.onmicrosoft.com
+  rdoe@InfoTech.com     ──sync──►  rdoe@tenant.onmicrosoft.com
+
+Sync interval: every 30 minutes (default)
+Direction:     one-way — on-prem → cloud only
+Protocol:      HTTPS outbound on port 443
+```
+
+---
+
+## 🚀 Installation Steps
+
+### Part A — Download Entra Connect on VM-WINSERV-01
+
+Open a browser on **VM-WINSERV-01** and download directly from Microsoft:
+
+```
+https://www.microsoft.com/en-us/download/details.aspx?id=47594
+```
+
+Or download via PowerShell:
+
+```powershell
+# Download Microsoft Entra Connect installer
+Invoke-WebRequest `
+    -Uri "https://download.microsoft.com/download/B/0/0/B00291D0-5A83-4DE7-86F5-980BC00DE05A/AzureADConnect.msi" `
+    -OutFile "C:\Temp\AzureADConnect.msi"
+```
+
+---
+
+### Part B — Run the Installer
+
+Double-click `AzureADConnect.msi` → the setup wizard opens.
+
+**Screen 1 — Welcome**
+
+- Check **"I agree to the license terms"**
+- Click **Continue**
+  **Screen 2 — Express Settings vs Custom**
+
+Choose **Customize** — not Express. Express uses the Administrator account
+which is not best practice. Custom lets us use the `EntConnSync` account
+we created in Phase 2.
+
+---
+
+### Part C — Configure in the Wizard
+
+**Step 1 — Install required components**
+
+Leave all defaults — click **Install**
+
+**Step 2 — User sign-in method**
+
+Select **Password Hash Synchronization** — this is the simplest and most
+common method. It syncs a hash of the password hash so users can authenticate
+to cloud apps using their on-prem password.
+
+| Sign-in Method            | Description                  | Use Case                    |
+| ------------------------- | ---------------------------- | --------------------------- |
+| **Password Hash Sync** ✅ | Syncs password hash to cloud | Simplest — best for lab     |
+| Pass-through Auth         | Auth stays on-prem           | No password stored in cloud |
+| Federation (ADFS)         | Full federation server       | Complex enterprise setups   |
+
+**Step 3 — Connect to Microsoft Entra ID**
+
+Enter your **Azure Global Admin** credentials:
+
+```
+Username: youradmin@yourtenant.onmicrosoft.com
+Password: your Azure portal password
+```
+
+**Step 4 — Connect your on-premises directories**
+
+- Click **Add Directory**
+- Forest: `InfoTech.com` should auto-detect
+- Select **Create new AD account**
+- Enter Domain Admin credentials for `InfoTech.com`
+- Click **OK**
+  **Step 5 — Azure AD sign-in configuration**
+
+You'll see a warning:
+
+```
+⚠️ Users will not be able to sign in to Azure AD with
+on-premises credentials if the UPN suffix does not match
+a verified domain.
+```
+
+This is expected — `InfoTech.com` is not a verified domain in Azure.
+Check **"Continue without matching all UPN suffixes to verified domains"**
+
+**Step 6 — Domain and OU filtering**
+
+Select **Sync selected domains and OUs** → expand `InfoTech.com` →
+uncheck everything → check only `Azure_Sync` OU
+
+This ensures ONLY the four lab users sync — not service accounts,
+disabled accounts, or system objects.
+
+**Step 7 — Identifying users**
+
+Leave defaults:
+
+- Users are represented only once across all directories ✅
+- Let Azure manage the source anchor ✅
+  **Step 8 — Filter users and devices**
+
+Leave as **Synchronize all users and devices** — the OU filter
+from Step 6 already handles scope.
+
+**Step 9 — Optional features**
+
+Enable:
+
+- ✅ **Password hash synchronization**
+- ✅ **Password writeback** _(needed for SSPR in Phase 7)_
+- Leave others unchecked for now
+  **Step 10 — Ready to configure**
+
+Confirm:
+
+- ✅ Start the synchronization process when configuration completes
+- Click **Install**
+
+---
+
+### Part D — Verify the Service is Running
+
+```powershell
+# Check Entra Connect sync service is running
+Get-Service -Name "ADSync"
+
+# Check the sync scheduler is active
+Import-Module ADSync
+Get-ADSyncScheduler
+```
+
+**Expected:**
+
+```
+Status   Name     DisplayName
+──────   ────     ───────────
+Running  ADSync   Microsoft Azure AD Sync
+
+AllowedSyncCycleInterval : 00:30:00
+CurrentlyRunning         : False
+NextSyncCyclePolicyType  : Delta
+SyncCycleEnabled         : True
+```
+
+---
+
+### Part E — Trigger the First Manual Sync
+
+Don't wait 30 minutes — force the first sync immediately:
+
+```powershell
+Import-Module ADSync
+
+# Run a full initial sync
+Start-ADSyncSyncCycle -PolicyType Initial
+
+# Monitor sync progress
+Get-ADSyncConnectorStatistics -ConnectorName "InfoTech.com"
+```
+
+The initial sync typically takes 1–3 minutes for a small directory.
+
+---
+
+### Part F — Verify Sync in Azure Portal
+
+Open a browser and navigate to:
+
+```
+https://portal.azure.com → Microsoft Entra ID → Users
+```
+
+You should see your four on-premises users now appearing with
+**Source: Windows Server AD**:
+
+| User      | Cloud UPN                              | Source            |
+| --------- | -------------------------------------- | ----------------- |
+| Paula Doe | `paula.doe@yourtenant.onmicrosoft.com` | Windows Server AD |
+| Dave Doe  | `dave.doe@yourtenant.onmicrosoft.com`  | Windows Server AD |
+| Sue       | `sue@yourtenant.onmicrosoft.com`       | Windows Server AD |
+| Ram Doe   | `ram.doe@yourtenant.onmicrosoft.com`   | Windows Server AD |
+
+---
+
+## 🔧 Troubleshooting
+
+| Issue                           | Check                       | Fix                                             |
+| ------------------------------- | --------------------------- | ----------------------------------------------- |
+| Users not appearing in Azure    | `Get-ADSyncScheduler`       | Run `Start-ADSyncSyncCycle -PolicyType Initial` |
+| Sync service not starting       | Event Viewer → Application  | Check `EntConnSync` account credentials         |
+| UPN mismatch warning            | Expected for private domain | Accept and continue — lab behaviour             |
+| Connectivity error during setup | Port 443 blocked            | Run Part C connectivity tests from Phase 2      |
+| "Access denied" on AD directory | Wrong credentials           | Use Domain Admin credentials for InfoTech.com   |
+
+---
+
+## ✅ Outcome
+
+- Microsoft Entra Connect downloaded and installed on `VM-WINSERV-01` ✅
+- Password Hash Synchronization configured ✅
+- Sync scoped to `Azure_Sync` OU only — 4 users ✅
+- `ADSync` service running and confirmed active ✅
+- First manual sync completed successfully ✅
+- All 4 users visible in Entra ID portal as **Windows Server AD** source ✅
+- Password writeback enabled ✅
+
+---
+
+## 📸 Screenshots
+
+<p align="center">
+   <img src="screenshots/phase3-img1.png" width="45%" />
+   <img src="screenshots/phase3-img2.png" width="45%" />
+</p>
+<p align="center">
+  <img src="screenshots/phase3-img3.png" width="45%" />
+  
 </p>
 ---
