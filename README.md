@@ -122,8 +122,8 @@ azure-hybrid-identity-lab/
 
 | #   | Phase                                             | Status     |
 | --- | ------------------------------------------------- | ---------- |
-| 1   | Set up Azure free trial + explore Entra ID portal | ⏳ Pending |
-| 2   | Prepare on-premises AD for hybrid sync            | ⏳ Pending |
+| 1   | Set up Azure free trial + explore Entra ID portal | ✅ Complete|
+| 2   | Prepare on-premises AD for hybrid sync            | ✅ Complete|
 | 3   | Install and configure Microsoft Entra Connect     | ⏳ Pending |
 | 4   | Verify user sync — on-prem AD → Entra ID          | ⏳ Pending |
 | 5   | Configure Multi-Factor Authentication (MFA)       | ⏳ Pending |
@@ -350,5 +350,234 @@ paula.doe@yourtenant.onmicrosoft.com
 <p align="center">
   <img src="screenshots/phase1-img1.png" width="45%"
        title="Azure Portal home — free trial active with $200 credit" /
+</p>
+---
+---
+ 
+# ✅ Phase 2 — Prepare On-Premises AD for Hybrid Sync
+ 
+## 📋 What This Phase Covers
+ 
+Before installing Microsoft Entra Connect, the on-premises environment needs
+to be verified and prepared. Skipping this phase causes sync errors that are
+difficult to diagnose after the fact. This phase checks every prerequisite
+so the Entra Connect installation in Phase 3 goes cleanly.
+ 
+---
+ 
+## ⚙️ Part A — Verify AD Health
+ 
+Run on **VM-WINSERV-01** as Domain Admin:
+ 
+```powershell
+# Replication must be clean before any sync setup
+repadmin /replsummary
+ 
+# Domain and forest functional levels
+Get-ADDomain | Select DNSRoot, DomainMode, PDCEmulator
+Get-ADForest | Select Name, ForestMode
+ 
+# Confirm FSMO roles are all on Server 01
+netdom query fsmo
+```
+ 
+**Expected:**
+ 
+| Check | Required |
+|-------|---------|
+| Replication failures | 0 / 5 on both servers |
+| Domain Mode | Windows2016Domain or higher |
+| Forest Mode | Windows2016Forest or higher |
+| PDC Emulator | `VM-DEV-WINSERV-01` |
+ 
+---
+ 
+## ⚙️ Part B — Check Entra Connect Prerequisites on VM-WINSERV-01
+ 
+Entra Connect has specific software requirements. Verify all of these
+before downloading the installer:
+ 
+```powershell
+# .NET Framework version — needs 4.6.2 minimum
+(Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full").Release
+ 
+# PowerShell version — needs 3.0 minimum
+$PSVersionTable.PSVersion
+ 
+# Windows Server version
+[System.Environment]::OSVersion.Version
+ 
+# Check TLS 1.2 is enabled (required for Azure connectivity)
+[Net.ServicePointManager]::SecurityProtocol
+```
+ 
+**Minimum requirements:**
+ 
+| Requirement | Minimum | Windows Server 2025 |
+|-------------|---------|-------------------|
+| .NET Framework | 4.6.2 | ✅ Included |
+| PowerShell | 3.0 | ✅ 5.1 included |
+| TLS | 1.2 | ✅ Enabled by default |
+| OS | Server 2016 | ✅ 2025 |
+ 
+---
+ 
+## ⚙️ Part C — Verify Internet Connectivity from VM-WINSERV-01
+ 
+Entra Connect communicates with Microsoft's cloud endpoints on port 443.
+Confirm Server 01 can reach them:
+ 
+```powershell
+# Test connectivity to Azure AD endpoints
+Test-NetConnection -ComputerName "login.microsoftonline.com" -Port 443
+Test-NetConnection -ComputerName "aadcdn.msftauth.net" -Port 443
+Test-NetConnection -ComputerName "graph.microsoft.com" -Port 443
+```
+ 
+**Expected — all three should return:**
+```
+TcpTestSucceeded : True
+```
+ 
+If any return `False` — check that the VM's network adapter is set to
+**Bridged** (not NAT) and that port 443 is not blocked by a local firewall rule.
+ 
+---
+ 
+## ⚙️ Part D — Review AD Users Before Sync
+ 
+Check which users exist and how they are configured — these are the
+accounts that will sync to Entra ID:
+ 
+```powershell
+# List all enabled users with their UPNs
+Get-ADUser -Filter {Enabled -eq $true} -Properties EmailAddress, Department |
+    Select DisplayName, SamAccountName, UserPrincipalName,
+           Department, EmailAddress |
+    Sort-Object Department
+```
+ 
+**Accounts expected to sync:**
+ 
+| User | UPN | Department |
+|------|-----|-----------|
+| Paula | `paula@InfoTech.com` | IT |
+| Dave | `dave@InfoTech.com` | IT |
+| Sue | `sue@InfoTech.com` | IT |
+| Ram Doe | `rdoe@InfoTech.com` | IT |
+| Administrator | `Administrator@InfoTech.com` | — |
+ 
+> **Note:** When these users sync to Entra ID, their UPN will become
+> `username@yourtenant.onmicrosoft.com` because `InfoTech.com` is a
+> private domain that cannot be verified in Azure.
+ 
+---
+ 
+## ⚙️ Part E — Create a Dedicated Sync Account in AD
+ 
+Entra Connect needs a service account in your on-premises AD to read
+directory objects. Creating a dedicated account (rather than using
+Administrator) is best practice:
+ 
+```powershell
+# Create the Entra Connect service account
+New-ADUser `
+    -Name "EntraConnectSync" `
+    -SamAccountName "EntConnSync" `
+    -UserPrincipalName "EntConnSync@InfoTech.com" `
+    -AccountPassword (ConvertTo-SecureString "Sync@InfoTech2026!" -AsPlainText -Force) `
+    -Enabled $true `
+    -PasswordNeverExpires $true `
+    -Description "Microsoft Entra Connect sync service account"
+ 
+# Verify account was created
+Get-ADUser -Identity "EntConnSync" | Select Name, SamAccountName, Enabled
+```
+ 
+> **Why PasswordNeverExpires?** If the sync account password expires,
+> all cloud sync stops silently. In production you would use a managed
+> service account (gMSA) — for this lab, PasswordNeverExpires is acceptable.
+ 
+---
+ 
+## ⚙️ Part F — Create a Dedicated Sync OU (Optional but Recommended)
+ 
+By default Entra Connect syncs all OUs. Creating a dedicated OU lets you
+control exactly which users sync to Azure:
+ 
+```powershell
+# Create a Sync OU under the domain root
+New-ADOrganizationalUnit `
+    -Name "Azure_Sync" `
+    -Path "DC=InfoTech,DC=com" `
+    -Description "Users in this OU sync to Microsoft Entra ID"
+ 
+# Move the lab users into it
+$syncOU = "OU=Azure_Sync,DC=InfoTech,DC=com"
+ 
+Move-ADObject -Identity (Get-ADUser "paula.doe").DistinguishedName -TargetPath $syncOU
+Move-ADObject -Identity (Get-ADUser "dave.doe").DistinguishedName -TargetPath $syncOU
+Move-ADObject -Identity (Get-ADUser "sue").DistinguishedName -TargetPath $syncOU
+Move-ADObject -Identity (Get-ADUser "ram.doe").DistinguishedName -TargetPath $syncOU
+ 
+# Verify users are in the new OU
+Get-ADUser -Filter * -SearchBase $syncOU |
+    Select DisplayName, SamAccountName
+```
+ 
+---
+ 
+## ⚙️ Part G — Final Pre-Sync Checklist
+ 
+Run this final verification before moving to Phase 3:
+ 
+```powershell
+# Everything should come back clean
+Write-Host "=== AD Health ===" -ForegroundColor Cyan
+repadmin /replsummary
+ 
+Write-Host "`n=== Domain Mode ===" -ForegroundColor Cyan
+Get-ADDomain | Select DomainMode, PDCEmulator
+ 
+Write-Host "`n=== FSMO Roles ===" -ForegroundColor Cyan
+netdom query fsmo
+ 
+Write-Host "`n=== Sync Account ===" -ForegroundColor Cyan
+Get-ADUser -Identity "EntConnSync" | Select Name, Enabled
+ 
+Write-Host "`n=== Users in Sync OU ===" -ForegroundColor Cyan
+Get-ADUser -Filter * -SearchBase "OU=Azure_Sync,DC=InfoTech,DC=com" |
+    Select DisplayName, UserPrincipalName
+ 
+Write-Host "`n=== Azure Connectivity ===" -ForegroundColor Cyan
+Test-NetConnection -ComputerName "login.microsoftonline.com" -Port 443 |
+    Select ComputerName, TcpTestSucceeded
+```
+ 
+---
+ 
+## ✅ Outcome
+ 
+- AD replication confirmed clean — 0 failures on both DCs ✅
+- Domain functional level confirmed Windows2016Domain or higher ✅
+- All Entra Connect prerequisites met on VM-WINSERV-01 ✅
+- Outbound connectivity to Microsoft endpoints confirmed ✅
+- AD users reviewed — 4 accounts ready for sync ✅
+- Dedicated sync service account `EntConnSync` created ✅
+- `Azure_Sync` OU created — users moved in for controlled sync ✅
+---
+ 
+## 📸 Screenshots
+ 
+<p align="center">
+   <img src="screenshots/phase2-img1.png" width="45%" />
+   <img src="screenshots/phase2-img2.png" width="45%" />
+</p>
+<p align="center">
+  <img src="screenshots/phase2-img3.png" width="45%" />
+   <img src="screenshots/phase2-img4.png" width="45%" />
+</p>
+<p align="center">
+  <img src="screenshots/phase2-img5.png" width="45%" />
 </p>
 ---
