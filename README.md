@@ -126,7 +126,7 @@ azure-hybrid-identity-lab/
 | 2   | Prepare on-premises AD for hybrid sync            | ✅ Complete |
 | 3   | Install and configure Microsoft Entra Connect     | ✅ Complete |
 | 4   | Verify user sync — on-prem AD → Entra ID          | ✅ Complete |
-| 5   | Configure Multi-Factor Authentication (MFA)       | ⏳ Pending  |
+| 5   | Configure Multi-Factor Authentication (MFA)       | ✅ Complete |
 | 6   | Configure Conditional Access policies             | ⏳ Pending  |
 | 7   | Configure Self-Service Password Reset (SSPR)      | ⏳ Pending  |
 | 8   | Runbook + final documentation + GitHub push       | ⏳ Pending  |
@@ -1051,4 +1051,181 @@ Get-ADSyncScheduler | Select SyncCycleEnabled, NextSyncCyclePolicyTypea
   <img src="screenshots/phase4-img4.png" width="45%" />
   
 </p>
+---
+
+# ✅ Phase 5 — Configure Multi-Factor Authentication (MFA)
+
+## 📋 What This Phase Covers
+
+MFA adds a second verification step when users sign into cloud applications —
+even if someone has the correct password, they still need to approve the
+sign-in on their phone or enter a one-time code. This phase enables MFA
+for the synced InfoTech.com users and tests it end to end.
+
+---
+
+## 🔍 How MFA Works in Entra ID
+
+```
+User enters username + password
+              │
+              ▼
+Entra ID validates credentials ✅
+              │
+              ▼
+MFA challenge triggered
+              │
+        ┌─────┴──────────────────────┐
+        ▼                            ▼
+Microsoft Authenticator App    One-time SMS code
+"Approve sign-in?" → Approve   Enter 6-digit code
+        │                            │
+        └─────────────┬──────────────┘
+                      ▼
+              Access granted ✅
+```
+
+---
+
+## ⚙️ Part A — Enable Security Defaults (Quickest MFA Method)
+
+Security Defaults is Microsoft's free baseline MFA policy that
+requires all users to register for MFA. This is the simplest
+approach for the free tier and doesn't require Entra ID P1.
+
+Navigate to:
+
+```
+portal.azure.com
+→ Microsoft Entra ID
+→ Overview
+→ Properties (bottom of left sidebar)
+→ Manage Security Defaults (at the bottom of the page)
+```
+
+Toggle **Security Defaults** to **Enabled** → Save.
+
+**What Security Defaults enforces:**
+| Policy | Effect |
+|--------|--------|
+| All users must register for MFA | Within 14 days of first sign-in |
+| Admins always require MFA | On every sign-in |
+| Block legacy authentication | Blocks basic auth protocols |
+| MFA required for Azure management | Always |
+
+> **Note:** Security Defaults and Conditional Access cannot run at the same time.
+> Since the free tier doesn't include full Conditional Access, Security Defaults
+> is the correct choice for this lab.
+
+---
+
+## ⚙️ Part B — Register MFA Method for a User
+
+After enabling Security Defaults, test the MFA registration flow with Paula:
+
+**Option 1 — Microsoft Authenticator App (Recommended)**
+
+On your phone:
+
+1. Download **Microsoft Authenticator** from App Store / Google Play
+2. Open an InPrivate browser → go to `https://myapps.microsoft.com`
+3. Sign in as `paula@sagaarpkrgmail129.onmicrosoft.com`
+4. You will be prompted: **"More information required"** → click Next
+5. Follow the wizard to scan the QR code with the Authenticator app
+6. Approve the test notification → registration complete
+   **Option 2 — One-Time Passcode via Email or SMS**
+
+```
+https://aka.ms/mfasetup
+→ Sign in as paula@sagaarpkrgmail129.onmicrosoft.com
+→ Add sign-in method → choose Phone or Email
+→ Enter phone number or email → verify the code
+```
+
+---
+
+## ⚙️ Part C — Enable Per-User MFA (Alternative to Security Defaults)
+
+If you want more granular control — enabling MFA per user instead
+of for everyone:
+
+```
+portal.azure.com
+→ Microsoft Entra ID
+→ Users → All Users
+→ Per-user MFA (top menu bar)
+```
+
+Select Paula Doe → click **Enable** under Quick Steps.
+
+Repeat for Dave, Sue, and Ram.
+
+| User    | MFA Status |
+| ------- | ---------- |
+| Paula   | Enabled    |
+| Dave    | Enabled    |
+| Sue     | Enabled    |
+| Ram Doe | Enabled    |
+
+---
+
+## ⚙️ Part D — Test MFA End to End
+
+Open an InPrivate browser and sign in:
+
+```
+https://myapps.microsoft.com
+Username: paula@sagaarpkrgmail129.onmicrosoft.com
+Password: *********
+```
+
+**Expected flow:**
+
+```
+1. Enter username and password ✅
+2. MFA challenge appears
+   → "Approve sign-in?" notification on Authenticator app
+   → OR enter 6-digit code
+3. Approve / enter code ✅
+4. My Apps portal loads ✅
+```
+
+If MFA fires and the user gets in after approving — Phase 5 is complete.
+
+---
+
+## ⚙️ Part E — View MFA Registration Status in Portal
+
+Check which users have registered their MFA method:
+
+```
+portal.azure.com
+→ Microsoft Entra ID
+→ Security
+→ Authentication Methods
+→ User Registration Details
+```
+
+This shows:
+
+| User      | MFA Registered | Method                  |
+| --------- | -------------- | ----------------------- |
+| Paula Doe | Yes            | Microsoft Authenticator |
+| Dave Doe  | No             | — (pending)             |
+| Sue       | No             | — (pending)             |
+| Ram Doe   | No             | — (pending)             |
+
+> Users who haven't registered will be prompted on their next sign-in
+> and have 14 days to complete registration before being blocked.
+
+---
+
+## ✅ Outcome
+
+- Security Defaults enabled — MFA required for all users ✅
+- Microsoft Authenticator registered for Paula Doe ✅
+- MFA challenge confirmed firing on sign-in ✅
+- Test sign-in successful after MFA approval ✅
+- MFA registration status visible in Authentication Methods portal ✅
+
 ---
