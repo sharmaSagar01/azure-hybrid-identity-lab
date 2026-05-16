@@ -125,7 +125,7 @@ azure-hybrid-identity-lab/
 | 1   | Set up Azure free trial + explore Entra ID portal | ✅ Complete |
 | 2   | Prepare on-premises AD for hybrid sync            | ✅ Complete |
 | 3   | Install and configure Microsoft Entra Connect     | ✅ Complete |
-| 4   | Verify user sync — on-prem AD → Entra ID          | ⏳ Pending  |
+| 4   | Verify user sync — on-prem AD → Entra ID          | ✅ Complete |
 | 5   | Configure Multi-Factor Authentication (MFA)       | ⏳ Pending  |
 | 6   | Configure Conditional Access policies             | ⏳ Pending  |
 | 7   | Configure Self-Service Password Reset (SSPR)      | ⏳ Pending  |
@@ -830,6 +830,225 @@ You should see your four on-premises users now appearing with
 </p>
 <p align="center">
   <img src="screenshots/phase3-img3.png" width="45%" />
+  
+</p>
+---
+
+---
+
+# ✅ Phase 4 — Verify Hybrid Identity Sync
+
+## 📋 What This Phase Covers
+
+With Entra Connect installed and the first sync completed, this phase
+verifies that everything is working correctly — from both sides. Users
+are checked in the Azure Portal, attributes are confirmed, sync health
+is validated, and a test sign-in confirms the hybrid identity is fully
+functional end to end.
+
+---
+
+## 🔍 Part A — Verify Users in Azure Portal
+
+Navigate to:
+
+```
+https://portal.azure.com → Microsoft Entra ID → Users → All Users
+```
+
+You should see your four synced users alongside the cloud admin account.
+Look for the **On-premises sync enabled** column showing **Yes**:
+
+| Display Name | UPN                                | On-Premises Sync | Source            |
+| ------------ | ---------------------------------- | ---------------- | ----------------- |
+| Paula        | `paula@yourtenant.onmicrosoft.com` | Yes              | Windows Server AD |
+| Dave         | `dave@yourtenant.onmicrosoft.com`  | Yes              | Windows Server AD |
+| Sue          | `sue@yourtenant.onmicrosoft.com`   | Yes              | Windows Server AD |
+| Ram          | `rdoe@yourtenant.onmicrosoft.com`  | Yes              | Windows Server AD |
+
+Click on **Paula Doe** → confirm these attributes synced correctly:
+
+| Attribute       | Expected Value       |
+| --------------- | -------------------- |
+| Department      | IT                   |
+| Job Title       | Senior Agent         |
+| On-premises UPN | `paula@InfoTech.com` |
+| Source          | Windows Server AD    |
+| Account enabled | Yes                  |
+
+---
+
+## 🔍 Part B — Verify Sync Health from VM-WINSERV-01
+
+```powershell
+# Import the ADSync module
+Import-Module "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync\ADSync.psd1"
+
+# Check sync scheduler — SyncCycleEnabled must be True
+Get-ADSyncScheduler | Select SyncCycleEnabled, NextSyncCyclePolicyType, `
+    NextSyncCycleStartTimeInUTC, LastSyncRunStatus
+
+# Check connector statistics
+Get-ADSyncConnectorStatistics -ConnectorName "InfoTech.com"
+
+# Check for any sync errors on objects
+Get-ADSyncCSObject -ConnectorName "InfoTech.com" |
+    Where-Object { $_.HasSyncError -eq $true } |
+    Select DisplayName, SyncError
+```
+
+**Expected:**
+
+```
+SyncCycleEnabled     : True
+NextSyncCyclePolicyType : Delta
+LastSyncRunStatus    : Success
+```
+
+---
+
+## 🔍 Part C — Check Sync Errors
+
+```powershell
+# Check for any objects that failed to sync
+$errors = Get-ADSyncCSObject -ConnectorName "InfoTech.com" |
+    Where-Object { $_.HasSyncError -eq $true }
+
+if ($errors) {
+    $errors | Select DisplayName, SyncError
+} else {
+    Write-Host "No sync errors — all objects synced cleanly" -ForegroundColor Green
+}
+```
+
+If any users show a sync error — the most common causes are:
+
+| Error                        | Cause                   | Fix                                           |
+| ---------------------------- | ----------------------- | --------------------------------------------- |
+| `AttributeValueMustBeUnique` | Duplicate UPN or email  | Fix the duplicate in AD, run delta sync       |
+| `InvalidSoftMatch`           | UPN mismatch            | Expected for InfoTech.com — not an error      |
+| `ExportErrorNotRetried`      | Transient network error | Run `Start-ADSyncSyncCycle -PolicyType Delta` |
+
+---
+
+## 🔍 Part D — Verify Password Hash Sync
+
+Confirm that password hashes are syncing — this is what allows
+users to authenticate to cloud apps with their on-prem password:
+
+```powershell
+# Check Password Hash Sync status
+Get-ADSyncAADPasswordSyncState
+```
+
+**Expected:**
+
+```
+PasswordSyncState : Enabled
+LastSuccessfulSync : {recent timestamp}
+```
+
+In the Azure Portal, also check:
+
+```
+Microsoft Entra ID → Overview → Password hash sync status: Enabled
+```
+
+---
+
+## 🔍 Part E — Test User Sign-In to Microsoft 365
+
+This is the end-to-end test — confirming a synced on-premises user
+can actually sign into a cloud application.
+
+Open a browser in **InPrivate / Incognito mode** and go to:
+
+```
+https://myapps.microsoft.com
+```
+
+Sign in as one of the synced users:
+
+```
+Username: paula.doe@yourtenant.onmicrosoft.com
+Password: paula.doe's on-premises AD password
+```
+
+**Expected:** My Apps portal loads — user is authenticated ✅
+
+If sign-in fails with "incorrect password" — the password hash
+hasn't synced yet. Force it:
+
+```powershell
+# Force password hash sync
+Import-Module "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync\ADSync.psd1"
+Invoke-ADSyncRunProfile -ConnectorName "yourtenant.onmicrosoft.com" `
+    -RunProfileName "Export"
+Start-ADSyncSyncCycle -PolicyType Delta
+```
+
+---
+
+## 🔍 Part F — Verify Sync in Entra Connect Health (Optional)
+
+In the Azure Portal:
+
+```
+Microsoft Entra ID → Microsoft Entra Connect → Connect sync
+```
+
+This shows:
+
+- Last sync time
+- Sync status (Healthy / Error)
+- Number of objects synced
+- Any pending errors
+  A green **Healthy** status with a recent sync time confirms everything
+  is working correctly.
+
+---
+
+## ⚙️ Useful Sync Management Commands
+
+```powershell
+Import-Module "C:\Program Files\Microsoft Azure AD Sync\Bin\ADSync\ADSync.psd1"
+
+Write-Host "=== Sync Service ===" -ForegroundColor Cyan
+Get-Service -Name "ADSync" | Select Status, Name
+
+Write-Host "`n=== Connector Run Status ===" -ForegroundColor Cyan
+Get-ADSyncConnectorRunStatus
+
+Write-Host "`n=== Last 5 Sync Results ===" -ForegroundColor Cyan
+Get-ADSyncRunProfileResult | Select-Object -First 5 |
+    Select StartDate, RunProfileName, Result
+
+Write-Host "`n=== Scheduler ===" -ForegroundColor Cyan
+Get-ADSyncScheduler | Select SyncCycleEnabled, NextSyncCyclePolicyTypea
+```
+
+---
+
+## ✅ Outcome
+
+- All 4 users confirmed visible in Entra ID with **Windows Server AD** source ✅
+- User attributes (Department, Job Title) confirmed synced correctly ✅
+- Sync scheduler confirmed enabled — running every 30 minutes ✅
+- No sync errors detected ✅
+- Password Hash Synchronization confirmed active ✅
+- Test sign-in to `myapps.microsoft.com` successful with on-prem credentials ✅
+
+---
+
+## 📸 Screenshots
+
+<p align="center">
+   <img src="screenshots/phase4-img1.png" width="45%" />
+   <img src="screenshots/phase4-img2.png" width="45%" />
+</p>
+<p align="center">
+  <img src="screenshots/phase4-img3.png" width="45%" />
+  <img src="screenshots/phase4-img4.png" width="45%" />
   
 </p>
 ---

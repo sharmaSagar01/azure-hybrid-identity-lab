@@ -8,29 +8,29 @@
 
 ## 🌐 Environment
 
-| Item | Value |
-|------|-------|
-| **Installed On** | `VM-WINSERV-01` — `192.168.1.10` |
-| **On-Premises Domain** | `InfoTech.com` |
-| **Azure Tenant** | `yourtenant.onmicrosoft.com` |
-| **Sync Service** | `ADSync` (Windows Service) |
-| **Sync Interval** | Every 30 minutes (delta sync) |
-| **Sync Direction** | On-premises → Cloud (one-way) |
-| **Sync Method** | Password Hash Synchronization |
+| Item                   | Value                            |
+| ---------------------- | -------------------------------- |
+| **Installed On**       | `VM-WINSERV-01` — `192.168.1.10` |
+| **On-Premises Domain** | `InfoTech.com`                   |
+| **Azure Tenant**       | `yourtenant.onmicrosoft.com`     |
+| **Sync Service**       | `ADSync` (Windows Service)       |
+| **Sync Interval**      | Every 30 minutes (delta sync)    |
+| **Sync Direction**     | On-premises → Cloud (one-way)    |
+| **Sync Method**        | Password Hash Synchronization    |
 
 ---
 
 ## 🔧 Installation Settings
 
-| Setting | Value |
-|---------|-------|
-| **Installation Type** | Custom (not Express) |
-| **Sign-in Method** | Password Hash Synchronization |
-| **Source Anchor** | Managed by Azure (default) |
-| **UPN Matching** | Continued without match — `InfoTech.com` is unverified |
-| **Password Writeback** | Enabled — required for SSPR |
-| **Device Writeback** | Disabled |
-| **Exchange Hybrid** | Disabled |
+| Setting                | Value                                                  |
+| ---------------------- | ------------------------------------------------------ |
+| **Installation Type**  | Custom (not Express)                                   |
+| **Sign-in Method**     | Password Hash Synchronization                          |
+| **Source Anchor**      | Managed by Azure (default)                             |
+| **UPN Matching**       | Continued without match — `InfoTech.com` is unverified |
+| **Password Writeback** | Enabled — required for SSPR                            |
+| **Device Writeback**   | Disabled                                               |
+| **Exchange Hybrid**    | Disabled                                               |
 
 ---
 
@@ -39,34 +39,34 @@
 Only the `Azure_Sync` OU is included in the sync scope.
 All other OUs are excluded.
 
-| OU | Sync Status |
-|----|------------|
-| `OU=Azure_Sync,DC=InfoTech,DC=com` | ✅ Included |
-| `OU=All_Staff,DC=InfoTech,DC=com` | ❌ Excluded |
+| OU                                     | Sync Status |
+| -------------------------------------- | ----------- |
+| `OU=Azure_Sync,DC=InfoTech,DC=com`     | ✅ Included |
+| `OU=All_Staff,DC=InfoTech,DC=com`      | ❌ Excluded |
 | `OU=Disabled_Users,DC=InfoTech,DC=com` | ❌ Excluded |
-| `CN=Users,DC=InfoTech,DC=com` | ❌ Excluded |
+| `CN=Users,DC=InfoTech,DC=com`          | ❌ Excluded |
 
 ---
 
 ## 👤 Synced Users
 
-| On-Premises UPN | Cloud UPN | Department | Source |
-|-----------------|-----------|-----------|--------|
-| `paula@InfoTech.com` | `paula@yourtenant.onmicrosoft.com` | IT | Windows Server AD |
-| `dave@InfoTech.com` | `dave@yourtenant.onmicrosoft.com` | IT | Windows Server AD |
-| `sue@InfoTech.com` | `sue@yourtenant.onmicrosoft.com` | IT | Windows Server AD |
-| `rdoe@InfoTech.com` | `rdoe@yourtenant.onmicrosoft.com` | HR | Windows Server AD |
+| On-Premises UPN      | Cloud UPN                          | Department | Source            |
+| -------------------- | ---------------------------------- | ---------- | ----------------- |
+| `paula@InfoTech.com` | `paula@yourtenant.onmicrosoft.com` | IT         | Windows Server AD |
+| `dave@InfoTech.com`  | `dave@yourtenant.onmicrosoft.com`  | IT         | Windows Server AD |
+| `sue@InfoTech.com`   | `sue@yourtenant.onmicrosoft.com`   | IT         | Windows Server AD |
+| `rdoe@InfoTech.com`  | `rdoe@yourtenant.onmicrosoft.com`  | HR         | Windows Server AD |
 
 ---
 
 ## 🔑 Service Account
 
-| Item | Value |
-|------|-------|
-| **Account Name** | `EntConnSync` |
-| **UPN** | `EntConnSync@InfoTech.com` |
-| **Password Expires** | Never (lab setting) |
-| **Purpose** | Entra Connect reads AD objects via this account |
+| Item                 | Value                                           |
+| -------------------- | ----------------------------------------------- |
+| **Account Name**     | `EntConnSync`                                   |
+| **UPN**              | `EntConnSync@InfoTech.com`                      |
+| **Password Expires** | Never (lab setting)                             |
+| **Purpose**          | Entra Connect reads AD objects via this account |
 
 ---
 
@@ -108,13 +108,27 @@ Event Viewer → Applications and Services Logs → Directory Synchronization
 
 ## ⚠️ Known Behaviours in This Lab
 
-| Behaviour | Reason | Impact |
-|-----------|--------|--------|
-| UPN suffix shows `onmicrosoft.com` | `InfoTech.com` is unverified in Azure | Expected — users sign in with onmicrosoft.com UPN |
-| Password writeback requires Entra ID P1 | Free tier limitation | SSPR writeback may be limited — tested in Phase 7 |
-| Sync every 30 min | Default interval | Force sync with `Start-ADSyncSyncCycle` for immediate changes |
+| Behaviour                               | Reason                                | Impact                                                        |
+| --------------------------------------- | ------------------------------------- | ------------------------------------------------------------- |
+| UPN suffix shows `onmicrosoft.com`      | `InfoTech.com` is unverified in Azure | Expected — users sign in with onmicrosoft.com UPN             |
+| Password writeback requires Entra ID P1 | Free tier limitation                  | SSPR writeback may be limited — tested in Phase 7             |
+| Sync every 30 min                       | Default interval                      | Force sync with `Start-ADSyncSyncCycle` for immediate changes |
+
+
 
 ---
+
+## ✅ Sync Verification Status (Phase 4)
+
+| Check                               | Result                      |
+| ----------------------------------- | --------------------------- |
+| Users visible in Entra ID           | ✅ 4 users synced           |
+| On-premises sync enabled            | ✅ Yes on all accounts      |
+| Password Hash Sync                  | ✅ Active                   |
+| Sync errors                         | ✅ None                     |
+| Scheduler enabled                   | ✅ Running every 30 minutes |
+| Test sign-in (myapps.microsoft.com) | ✅ Successful               |
+| Source shown in portal              | ✅ Windows Server AD        |
 
 <div align="center">
 <sub>⚙️ Entra Connect Configuration | InfoTech.com → Entra ID | azure-hybrid-identity-lab</sub>
