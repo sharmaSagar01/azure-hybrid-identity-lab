@@ -1,19 +1,24 @@
 # 🔐 Conditional Access & MFA Configuration
 
-> Documents the MFA setup and Conditional Access policies configured
-> in the `azure-hybrid-identity-lab` project.
+> Documents the MFA setup and Conditional Access policies designed
+> for the `azure-hybrid-identity-lab` project.
+>
+> **Licence status:** Entra ID P1 not available on free Azure trial
+> with personal Microsoft account. Security Defaults active for MFA.
+> CA policies are fully designed and documented for production deployment.
 
 ---
 
-## 🔐 MFA Configuration
+## 🔐 Current MFA Status
 
 | Setting | Value |
 |---------|-------|
-| **Method** | Security Defaults (free tier) |
-| **Scope** | All users in tenant |
-| **MFA Registration Period** | 14 days grace for new users |
-| **Admins** | Always require MFA |
+| **Active Method** | Security Defaults |
+| **Licence** | Entra ID Free |
+| **MFA Coverage** | All users — required at sign-in |
+| **Admin MFA** | Always enforced |
 | **Legacy Auth** | Blocked |
+| **Conditional Access** | Not active — P1 required |
 
 ---
 
@@ -28,44 +33,78 @@
 
 ---
 
-## ⚙️ Security Defaults — What It Enforces
+## 📋 Designed Conditional Access Policies
 
-| Policy | Status |
-|--------|--------|
-| All users must register MFA | ✅ Enabled |
-| Admins require MFA on every sign-in | ✅ Enabled |
-| Block legacy authentication protocols | ✅ Enabled |
-| MFA required for Azure management | ✅ Enabled |
+### CA001 — Require MFA for All Cloud Apps
 
-> Security Defaults is the free-tier equivalent of Conditional Access.
-> Full Conditional Access policies require Entra ID P1 licence.
-
----
-
-## 🧪 MFA Test Result
-
-| Test | Result |
-|------|--------|
-| Sign-in URL | `https://myapps.microsoft.com` |
-| Test User | `paula@sagaarpkrgmail129.onmicrosoft.com` |
-| Password accepted | ✅ |
-| MFA challenge triggered | ✅ |
-| Authenticator approval | ✅ |
-| Portal access granted | ✅ |
+| Field | Value |
+|-------|-------|
+| **Policy Name** | CA001 - Require MFA for All Cloud Apps |
+| **Status** | Designed — pending P1 licence |
+| **Users** | All users |
+| **Target Resources** | All cloud apps |
+| **Conditions** | None — applies to all sign-ins |
+| **Grant** | Require MFA |
+| **Deploy Mode** | Report-only → On |
 
 ---
 
-## 📋 Conditional Access Policies
+### CA002 — Block Sign-In Outside Canada
 
-> ⏳ Configured in Phase 6 — populated as policies are created.
+| Field | Value |
+|-------|-------|
+| **Policy Name** | CA002 - Block Sign-In Outside Canada |
+| **Status** | Designed — pending P1 licence |
+| **Users** | All users |
+| **Target Resources** | All cloud apps |
+| **Conditions** | Location: Include Any / Exclude Canada |
+| **Named Location** | Canada (country-based) |
+| **Grant** | Block access |
+| **Deploy Mode** | Report-only first — then On after log validation |
 
-| Policy Name | Status | Scope | Condition | Action |
-|-------------|--------|-------|-----------|--------|
-| Require MFA for all cloud apps | ⏳ Phase 6 | All users | Any location | Require MFA |
-| Block sign-in outside Canada | ⏳ Phase 6 | All users | Non-CA location | Block |
+---
+
+### CA003 — Require MFA for Admin Roles
+
+| Field | Value |
+|-------|-------|
+| **Policy Name** | CA003 - Require MFA for Admin Roles |
+| **Status** | Designed — pending P1 licence |
+| **Users** | Directory roles: Global Administrator |
+| **Target Resources** | All cloud apps |
+| **Conditions** | None — always applies |
+| **Grant** | Require MFA |
+| **Deploy Mode** | On immediately |
+
+---
+
+## 🔧 Production Deployment Sequence
+
+When P1 licence is available:
+
+```
+1. Activate Entra ID P1 → assign to all users
+2. Disable Security Defaults (conflicts with CA)
+3. Create CA001 → Report-only → test sign-in → switch to On
+4. Create Named Location: Canada
+5. Create CA002 → Report-only → validate logs → switch to On
+6. Create CA003 → On immediately (admin scope only)
+7. Monitor sign-in logs for 48 hours before full enforcement
+```
+
+---
+
+## ⚠️ Licence Requirement Notes
+
+| Attempt | Result |
+|---------|--------|
+| Azure portal → Licences → Try/Buy | Blocked — personal account limitation |
+| entra.microsoft.com → Try/Buy | Blocked — same limitation |
+| M365 Developer Program | Not available for this account type |
+| **Resolution** | Security Defaults active — CA policies documented for deployment |
 
 ---
 
 <div align="center">
-<sub>🔐 MFA & Conditional Access Reference | InfoTech.com | azure-hybrid-identity-lab</sub>
+<sub>🔐 Conditional Access Reference | InfoTech.com | azure-hybrid-identity-lab</sub>
 </div>

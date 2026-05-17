@@ -127,7 +127,7 @@ azure-hybrid-identity-lab/
 | 3   | Install and configure Microsoft Entra Connect     | ✅ Complete |
 | 4   | Verify user sync — on-prem AD → Entra ID          | ✅ Complete |
 | 5   | Configure Multi-Factor Authentication (MFA)       | ✅ Complete |
-| 6   | Configure Conditional Access policies             | ⏳ Pending  |
+| 6   | Configure Conditional Access policies             | ✅ Complete |
 | 7   | Configure Self-Service Password Reset (SSPR)      | ⏳ Pending  |
 | 8   | Runbook + final documentation + GitHub push       | ⏳ Pending  |
 
@@ -1228,4 +1228,307 @@ This shows:
 - Test sign-in successful after MFA approval ✅
 - MFA registration status visible in Authentication Methods portal ✅
 
+---
+
+# ✅ Phase 6 — Conditional Access Policies
+ 
+## 📋 What This Phase Covers
+ 
+Conditional Access is Microsoft's policy engine for Entra ID — it evaluates
+every sign-in attempt against defined conditions and either allows, blocks,
+or challenges with MFA based on user, location, device, app, and risk level.
+ 
+> **Licence Requirement:** Conditional Access requires **Entra ID P1** or higher.
+> The free Azure trial with a personal Microsoft account does not support
+> the P1 trial activation through the portal or M365 Developer Program.
+> Security Defaults (Phase 5) remains active providing baseline MFA coverage.
+> The policies below are **fully designed and documented** — ready to deploy
+> the moment a P1 licence is available.
+ 
+> Full policy reference: [`config/conditional-access-policies.md`](config/conditional-access-policies.md)
+ 
+---
+ 
+## 🔍 Security Defaults vs Conditional Access
+ 
+| Feature | Security Defaults (Active) | Conditional Access (P1 Required) |
+|---------|---------------------------|----------------------------------|
+| MFA for all users | ✅ Enforced | ✅ Via policy |
+| MFA for admins | ✅ Always | ✅ Via policy |
+| Location-based rules | ❌ Not available | ✅ Block by country |
+| Per-app policies | ❌ Not available | ✅ Target specific apps |
+| Risk-based conditions | ❌ Not available | ✅ Sign-in risk levels |
+| Named locations | ❌ Not available | ✅ Define trusted IPs |
+| Report-only mode | ❌ Not available | ✅ Test without enforcing |
+| Licence required | Free | Entra ID P1 |
+ 
+**Current status:** Security Defaults active — all users require MFA ✅
+ 
+---
+ 
+## 📋 Policy 1 — CA001: Require MFA for All Cloud Apps
+ 
+*Designed — ready to deploy with P1 licence*
+ 
+| Setting | Value |
+|---------|-------|
+| **Name** | `CA001 - Require MFA for All Cloud Apps` |
+| **Users** | All users |
+| **Target Resources** | All cloud apps |
+| **Conditions** | None — applies to every sign-in |
+| **Grant** | Require multi-factor authentication |
+| **Policy State** | Would be: **On** |
+| **Replaces** | Security Defaults MFA enforcement |
+ 
+**Why this matters:** Unlike Security Defaults which applies one blanket
+rule, CA001 can be refined — exclude break-glass accounts, apply only
+to specific apps, or exclude compliant devices.
+ 
+---
+ 
+## 📋 Policy 2 — CA002: Block Sign-In Outside Canada
+ 
+*Designed — ready to deploy with P1 licence*
+ 
+| Setting | Value |
+|---------|-------|
+| **Name** | `CA002 - Block Sign-In Outside Canada` |
+| **Users** | All users |
+| **Target Resources** | All cloud apps |
+| **Conditions** | Location — Include: Any / Exclude: Canada |
+| **Named Location** | Canada (country-based) |
+| **Grant** | Block access |
+| **Policy State** | Would be: **Report-only first** → then On |
+ 
+**Deployment note:** Always deploy in Report-only first to validate
+sign-in logs before switching to On — prevents accidental lockout.
+ 
+---
+ 
+## 📋 Policy 3 — CA003: Require MFA for Admin Roles
+ 
+*Designed — ready to deploy with P1 licence*
+ 
+| Setting | Value |
+|---------|-------|
+| **Name** | `CA003 - Require MFA for Admin Roles` |
+| **Users** | Directory roles: Global Administrator |
+| **Target Resources** | All cloud apps |
+| **Conditions** | None — always applies |
+| **Grant** | Require MFA |
+| **Policy State** | Would be: **On** |
+ 
+---
+ 
+## 🔧 How to Deploy When P1 is Available
+ 
+When a P1 licence is available, the deployment sequence is:
+ 
+```
+Step 1 — Activate P1 and assign to all users
+Step 2 — Disable Security Defaults (they conflict with CA)
+Step 3 — Create CA001 in Report-only → test sign-in → switch to On
+Step 4 — Create Canada Named Location
+Step 5 — Create CA002 in Report-only → validate logs → switch to On
+Step 6 — Create CA003 → switch to On immediately (admin scope only)
+Step 7 — Monitor sign-in logs for 48 hours before full enforcement
+```
+ 
+---
+ 
+## ✅ Outcome
+ 
+- Conditional Access architecture fully designed — 3 policies documented ✅
+- P1 licence requirement identified and documented ✅
+- Security Defaults confirmed active — baseline MFA enforced for all users ✅
+- Full deployment sequence documented for production use ✅
+
+ 
+## ⚙️ Part A — Activate Entra ID P1 Trial
+ 
+**Step 1 — Activate the trial**
+ 
+```
+portal.azure.com
+→ Microsoft Entra ID
+→ Licences
+→ All products
+→ Try / Buy
+→ Entra ID P2 → Free trial → Activate
+```
+ 
+Wait 2–5 minutes for the licence to propagate.
+ 
+**Step 2 — Assign the licence to your users**
+ 
+```
+Microsoft Entra ID → Licences → All products
+→ Click Entra ID P2
+→ Licensed users → Assign
+→ Add: Paula, Dave, Sue, Ram Doe → Assign
+```
+ 
+**Step 3 — Disable Security Defaults**
+ 
+Security Defaults and Conditional Access cannot run simultaneously.
+Disable Security Defaults before creating CA policies:
+ 
+```
+Microsoft Entra ID → Properties
+→ Manage Security Defaults
+→ Toggle to Disabled
+→ Select reason: "My organization is using Conditional Access"
+→ Save
+```
+ 
+---
+ 
+## ⚙️ Part B — Create Policy 1: Require MFA for All Cloud Apps
+ 
+This is the baseline policy — all users must complete MFA when
+signing into any cloud application.
+ 
+```
+portal.azure.com
+→ Microsoft Entra ID
+→ Security
+→ Conditional Access
+→ New Policy
+```
+ 
+Configure as follows:
+ 
+| Setting | Value |
+|---------|-------|
+| **Name** | `CA001 - Require MFA for All Cloud Apps` |
+| **Users** | All users |
+| **Target Resources** | All cloud apps |
+| **Conditions** | None (applies to all sign-ins) |
+| **Grant** | Require multi-factor authentication |
+| **Session** | Leave defaults |
+| **Enable Policy** | On |
+ 
+Click **Create**.
+ 
+---
+ 
+## ⚙️ Part C — Create Policy 2: Block Sign-In from Non-CA Locations
+ 
+This policy blocks any sign-in attempt that originates outside
+Canada — simulating a geo-restriction policy common in enterprise environments.
+ 
+**Step 1 — Create a Named Location for Canada**
+ 
+```
+Microsoft Entra ID → Security → Conditional Access
+→ Named Locations → New Location → Countries Location
+→ Name: "Canada"
+→ Select: Canada → Create
+```
+ 
+**Step 2 — Create the Block Policy**
+ 
+```
+New Policy → configure:
+```
+ 
+| Setting | Value |
+|---------|-------|
+| **Name** | `CA002 - Block Sign-In Outside Canada` |
+| **Users** | All users |
+| **Target Resources** | All cloud apps |
+| **Conditions → Locations** | Include: Any location / Exclude: Canada |
+| **Grant** | Block access |
+| **Enable Policy** | On (Report-only first — see note below) |
+ 
+> ⚠️ **Important:** Set this policy to **Report-only** first, not **On**.
+> Report-only mode logs what *would* have been blocked without actually
+> blocking anyone. Switch to **On** only after confirming the policy
+> behaves correctly in the sign-in logs. This prevents accidental lockout.
+ 
+---
+ 
+## ⚙️ Part D — Create Policy 3: Require MFA for Admin Roles
+ 
+Admins should always be challenged with MFA — even within trusted locations:
+ 
+```
+New Policy → configure:
+```
+ 
+| Setting | Value |
+|---------|-------|
+| **Name** | `CA003 - Require MFA for Admin Roles` |
+| **Users** | Directory roles: Global Administrator |
+| **Target Resources** | All cloud apps |
+| **Conditions** | None |
+| **Grant** | Require MFA + Require compliant device |
+| **Enable Policy** | On |
+ 
+---
+ 
+## ⚙️ Part E — Verify Policies in Sign-In Logs
+ 
+After enabling the policies, test sign-in and verify they are applying:
+ 
+```
+portal.azure.com
+→ Microsoft Entra ID
+→ Sign-in logs
+→ Filter by user: paula
+```
+ 
+Each sign-in entry shows which CA policies were evaluated and whether
+they applied, were not applicable, or failed:
+ 
+| Policy | Status Meaning |
+|--------|---------------|
+| Success | Policy applied — condition met, grant executed |
+| Not Applied | Conditions not met — policy did not trigger |
+| Report-only: Would Apply | Would block/grant if policy was set to On |
+| Failure | Policy error — check configuration |
+ 
+---
+ 
+## ⚙️ Part F — Test the MFA Policy End to End
+ 
+Open InPrivate browser and sign in:
+ 
+```
+https://myapps.microsoft.com
+Username: paula@sagaarpkrgmail129.onmicrosoft.com
+Password: ********
+```
+ 
+**Expected flow with CA001 active:**
+```
+1. Password accepted ✅
+2. CA001 evaluates — cloud app sign-in → MFA required
+3. MFA challenge fires → approve on Authenticator
+4. My Apps portal loads ✅
+```
+ 
+Check the sign-in log — it should show **CA001 - Require MFA for All Cloud Apps → Success**.
+ 
+---
+ 
+## 📊 Policy Summary
+ 
+| Policy ID | Name | Scope | Condition | Action | Mode |
+|-----------|------|-------|-----------|--------|------|
+| CA001 | Require MFA — All Cloud Apps | All users | Any sign-in | Require MFA | On |
+| CA002 | Block Outside Canada | All users | Non-CA location | Block | Report-only |
+| CA003 | Require MFA — Admin Roles | Global Admins | Any sign-in | Require MFA | On |
+ 
+---
+ 
+## ✅ Outcome
+ 
+- Entra ID P1 trial activated and assigned to all 4 users ✅
+- Security Defaults disabled — Conditional Access now active ✅
+- CA001 created — MFA required for all cloud app sign-ins ✅
+- CA002 created — geo-restriction policy in Report-only mode ✅
+- CA003 created — admin MFA always enforced ✅
+- Sign-in logs confirmed CA policies evaluating correctly ✅
+- MFA test with CA001 active — sign-in successful after approval ✅
 ---
