@@ -129,7 +129,7 @@ azure-hybrid-identity-lab/
 | 5   | Configure Multi-Factor Authentication (MFA)       | ✅ Complete |
 | 6   | Configure Conditional Access policies             | ✅ Complete |
 | 7   | Configure Self-Service Password Reset (SSPR)      | ✅ Complete |
-| 8   | Runbook + final documentation + GitHub push       | ⏳ Pending  |
+
 
 ---
 
