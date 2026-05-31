@@ -163,7 +163,19 @@ Get-ADDomain | Select DNSRoot, DomainMode, PDCEmulator
 **Azure Free Trial:**
 
 - Sign up at `portal.azure.com` using a Microsoft account
-- $200 free credit for 30 days — sufficient for this entire project
+- $200 free credit for 30 days — sufficient for this entire project<div align="center">
+
+![Complete](https://img.shields.io/badge/Project-Complete-brightgreen?style=flat-square)
+
+**🎫 Built for learning • ⭐ Star if you find this useful**
+
+_Part of a series:_
+[AD & Windows Server Labs](https://github.com/your-username/ad-windows-server-labs) •
+[AD Automation Toolkit](https://github.com/your-username/ad-automation-toolkit) •
+[Wazuh SIEM Lab](https://github.com/your-username/wazuh-siem-lab) •
+[ITSM Helpdesk Lab](https://github.com/your-username/itsm-helpdesk-lab)
+
+</div>
 - No charges if credit is not exceeded
 - Required: a valid credit card for identity verification (not charged)
 
@@ -382,7 +394,19 @@ netdom query fsmo
 ```
  
 **Expected:**
- 
+ <div align="center">
+
+![Complete](https://img.shields.io/badge/Project-Complete-brightgreen?style=flat-square)
+
+**🎫 Built for learning • ⭐ Star if you find this useful**
+
+_Part of a series:_
+[AD & Windows Server Labs](https://github.com/your-username/ad-windows-server-labs) •
+[AD Automation Toolkit](https://github.com/your-username/ad-automation-toolkit) •
+[Wazuh SIEM Lab](https://github.com/your-username/wazuh-siem-lab) •
+[ITSM Helpdesk Lab](https://github.com/your-username/itsm-helpdesk-lab)
+
+</div>
 | Check | Required |
 |-------|---------|
 | Replication failures | 0 / 5 on both servers |
@@ -612,7 +636,19 @@ Sync interval: every 30 minutes (default)
 Direction:     one-way — on-prem → cloud only
 Protocol:      HTTPS outbound on port 443
 ```
+<div align="center">
 
+![Complete](https://img.shields.io/badge/Project-Complete-brightgreen?style=flat-square)
+
+**🎫 Built for learning • ⭐ Star if you find this useful**
+
+_Part of a series:_
+[AD & Windows Server Labs](https://github.com/your-username/ad-windows-server-labs) •
+[AD Automation Toolkit](https://github.com/your-username/ad-automation-toolkit) •
+[Wazuh SIEM Lab](https://github.com/your-username/wazuh-siem-lab) •
+[ITSM Helpdesk Lab](https://github.com/your-username/itsm-helpdesk-lab)
+
+</div>
 ---
 
 ## 🚀 Installation Steps
@@ -1161,7 +1197,19 @@ portal.azure.com
 → Per-user MFA (top menu bar)
 ```
 
-Select Paula Doe → click **Enable** under Quick Steps.
+Select Paula Doe → click **Enable** under Quick Steps.<div align="center">
+
+![Complete](https://img.shields.io/badge/Project-Complete-brightgreen?style=flat-square)
+
+**🎫 Built for learning • ⭐ Star if you find this useful**
+
+_Part of a series:_
+[AD & Windows Server Labs](https://github.com/your-username/ad-windows-server-labs) •
+[AD Automation Toolkit](https://github.com/your-username/ad-automation-toolkit) •
+[Wazuh SIEM Lab](https://github.com/your-username/wazuh-siem-lab) •
+[ITSM Helpdesk Lab](https://github.com/your-username/itsm-helpdesk-lab)
+
+</div>
 
 Repeat for Dave, Sue, and Ram.
 
@@ -1395,7 +1443,19 @@ signing into any cloud application.
 ```
 portal.azure.com
 → Microsoft Entra ID
-→ Security
+→ Security<div align="center">
+
+![Complete](https://img.shields.io/badge/Project-Complete-brightgreen?style=flat-square)
+
+**🎫 Built for learning • ⭐ Star if you find this useful**
+
+_Part of a series:_
+[AD & Windows Server Labs](https://github.com/your-username/ad-windows-server-labs) •
+[AD Automation Toolkit](https://github.com/your-username/ad-automation-toolkit) •
+[Wazuh SIEM Lab](https://github.com/your-username/wazuh-siem-lab) •
+[ITSM Helpdesk Lab](https://github.com/your-username/itsm-helpdesk-lab)
+
+</div>
 → Conditional Access
 → New Policy
 ```
@@ -1702,3 +1762,18 @@ giving users a single password across cloud and on-prem.
 - Password writeback limitation documented — P1 required ✅
 
 ---
+<div align="center">
+
+![Status](https://img.shields.io/badge/Status-Complete-green?style=flat-square)
+
+**☁️ Built for learning • ⭐ Star if you find this useful**
+
+_Part of a series:_
+[AD & Windows Server Labs](https://github.com/sharmaSagar01/ad-windows-server-labs) •
+[AD Automation Toolkit](https://github.com/sharmaSagar01/ad-automation-toolkit) •
+[Wazuh SIEM Lab](https://github.com/sharmaSagar01/wazuh-siem-lab) •
+[ITSM Helpdesk Lab](https://github.com/sharmaSagar01/itsm-helpdesk-lab) •
+[AWS Cloud Infrastructure Lab](https://github.com/sharmaSagar01/aws-cloud-infra-lab)
+
+</div>
+
