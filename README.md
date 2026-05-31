@@ -11,7 +11,7 @@
 ![Entra ID](https://img.shields.io/badge/Microsoft_Entra_ID-Hybrid_Identity-0078D4?style=flat-square)
 ![Windows Server](https://img.shields.io/badge/Windows_Server-2025-blue?style=flat-square&logo=windows)
 ![Active Directory](https://img.shields.io/badge/Domain-InfoTech.com-darkblue?style=flat-square)
-![Status](https://img.shields.io/badge/Status-In%20Progress-yellow?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Complete-green?style=flat-square)
 
 </div>
 
